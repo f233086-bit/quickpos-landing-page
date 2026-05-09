@@ -1,0 +1,60 @@
+name: QuickPOS CI Pipeline
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Install Dependencies
+        run: composer install
+
+      - name: Check PHP Syntax
+        run: find . -name "*.php" -not -path "./vendor/*" | xargs -I {} php -l {}
+
+      - name: Validate Commit Message
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ ! "$COMMIT_MSG" =~ \[QPOS-[0-9]+\] ]]; then
+            echo "ERROR: Commit message must contain Jira ticket ID like [QPOS-8]"
+            exit 1
+          fi
+
+  automated-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Install Dependencies
+        run: composer install
+
+      - name: Run PHPUnit Tests
+        run: ./vendor/bin/phpunit tests/ --testdox
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: test-results
+          path: tests/
